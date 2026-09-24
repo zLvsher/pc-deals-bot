@@ -37,9 +37,27 @@ _PRICE_RE = re.compile(r"(\d[\d.,]*)\s*€")
 _ID_RE = re.compile(r"-(\d{6,})\.htm")
 
 
+_BROWSER_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+}
+
+
 def _http_get(url: str, timeout: float = 25.0) -> tuple[int, str]:
-    """GET con browser-impersonation (aggira il 403 'lemuri' di Subito)."""
-    from curl_cffi.requests import Session  # import pigro: deps opzionale
+    """GET con browser-impersonation (aggira il 403 anti-bot di Subito).
+
+    Preferisce curl_cffi (fingerprint TLS identico a Chrome); se non è
+    installato ripiega su `requests` con header realistici — funziona in
+    genere, ma è più esposto al 403.
+    """
+    try:
+        from curl_cffi.requests import Session  # import pigro: deps opzionale
+    except ImportError:
+        import requests
+        r = requests.get(url, headers=_BROWSER_HEADERS, timeout=timeout)
+        return r.status_code, r.text
     with Session(impersonate="chrome124", timeout=timeout) as s:
         r = s.get(url)
         return r.status_code, r.text
@@ -71,13 +89,14 @@ class SubitoScraper(BaseScraper):
             log.warning("[subito] HTTP %s senza annunci (anti-bot?).", status)
             return []
         listings = self.parse_listings(html, params.category)
-        # pre-filtro di pertinenza lato scraper (case-insensitive sul titolo):
-        # scarta i fuori-tema che passano comunque la q di Subito
-        toks = [t for t in re.split(r"[^\w]+", params.query.lower()) if len(t) > 2]
-        if toks:
-            listings = [l for l in listings
-                        if any(t in l.title.lower() for t in toks)]
-        log.info("[subito] %d annunci pertinenti dopo il pre-filtro", len(listings))
+        # pre-filtro di pertinenza lato scraper (case-insensitive): scarta i
+        # fuori-tema che passano comunque la q di Subito (matcha anche le
+        # descrizioni). Soglia fissa bassa: quella fine resta alla GUI.
+        from bot.analysis.value import relevance_score
+        before = len(listings)
+        listings = [l for l in listings if relevance_score(l, params) >= 0.5]
+        log.info("[subito] %d/%d annunci pertinenti dopo il pre-filtro",
+                 len(listings), before)
         return listings
 
     # separato per essere testabile senza rete
@@ -93,7 +112,7 @@ class SubitoScraper(BaseScraper):
             m = _ID_RE.search(url)
             ext_id = m.group(1) if m else url
 
-            t_el = art.select_one("h3, [class*=subject]")
+            t_el = art.select_one("h3, [class*=subject], h2")
             title = t_el.get_text(" ", strip=True) if t_el else a.get("aria-label", "")
             if not title:
                 continue

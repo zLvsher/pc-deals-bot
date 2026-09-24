@@ -102,30 +102,64 @@ def estimate_fair_price(listing: Listing) -> tuple[float, float | None]:
 
 
 # ------------------------------------------------------------------ filtri
-_STOPWORDS = {
-    "ram", "cpu", "ddr", "ddr3", "ddr4", "ddr5", "gb", "ghz", "mhz", "pc",
+# Termini "deboli": da soli non identificano il prodotto (appaiono ovunque,
+# anche negli annunci fuori-tema come interi PC gaming). Valgono come match
+# solo se nel titolo è presente almeno un termine "forte" (marca/modello/capacità).
+_WEAK_TERMS = {
+    "ram", "cpu", "ddr", "gb", "ghz", "mhz", "pc",
     "kit", "banchi", "banco", "processore", "processor", "memoria",
-    "memorie", "nuovo", "nuova", "usato", "per", "di", "e", "x",
-}
+    "memorie", "nuovo", "nuova", "usato", "per", "con", "di", "in", "ed", "e",
+    "a", "o", "x",
+}   # nota: "ddr3/4/5" NON sono deboli — distinguono davvero il prodotto
+_GB_TOKEN_RE = re.compile(r"^\d{1,4}gb$")   # es. "16gb" → termine debole
 
 
 def _query_tokens(query: str) -> list[str]:
-    """Token significativi della query, in minuscolo (ricerca case-insensitive)."""
-    toks = [t for t in re.split(r"[^\w]+", query.lower()) if len(t) > 1]
-    return [t for t in toks if t not in _STOPWORDS] or [t for t in toks]
+    """Token della query, in minuscolo (ricerca case-insensitive)."""
+    return [t for t in re.split(r"[^\w]+", query.lower()) if len(t) > 1]
+
+
+def _is_weak(tok: str) -> bool:
+    return tok in _WEAK_TERMS or _GB_TOKEN_RE.match(tok)
 
 
 def relevance_score(listing: Listing, params: SearchParams) -> float:
-    """Quota di token della query presenti nel TITOLO dell'annuncio (0..1).
+    """Quota di token della query presenti nel testo dell'annuncio (0..1).
 
-    Il titolo è il segnale forte: un annuncio che non lo contiene è quasi
-    sempre un fuori-tema (es. un intero PC che menziona la RAM in descrizione).
+    Case-insensitive. I token deboli ("ram", "cpu", "16gb", …) contano come
+    match solo se nel titolo è presente almeno un termine forte (marca,
+    modello, DDRx): così un fuori-tema tipo "PC gaming con ram 16gb" per la
+    query "ram ddr4 16gb Kingston" viene scartato, mentre "Kingston Fury
+    16GB DDR4" passa anche scritto tutto in maiuscolo. Se la query contiene
+    solo termini deboli ("ram ddr4"), il vincolo forte non si applica.
     """
     toks = _query_tokens(params.query)
     if not toks:
         return 1.0
+    strong_q = [t for t in toks if not _is_weak(t)]
     title = listing.title.lower()
-    hit = sum(1 for t in toks if t in title)
+    text = f"{title} {listing.raw_description or ''}".lower()
+
+    def _in(tok: str, hay: str) -> bool:
+        # match su parola (evita falsi positivi tipo "ram" dentro "frame")
+        return re.search(rf"(?<!\w){re.escape(tok)}(?!\w)", hay) is not None
+
+    if not strong_q:
+        # query generica ("ram ddr4"): conta la presenza nel testo completo;
+        # il termine debole "ram" è implicito se c'è un codice prodotto DDRx
+        hit = sum(1 for t in toks if _in(t, text))
+        if "ram" in toks and hit == len(toks) - 1 and re.search(r"ddr\d", text):
+            hit += 1
+        return hit / len(toks)
+
+    # query specifica (marca/modello/DDRx): i token FORTI devono essere tutti
+    # nel titolo — un fuori-tema (es. intero PC gaming) viene scartato.
+    if not all(_in(t, title) for t in strong_q):
+        return 0.0
+    hit = len(strong_q)
+    for t in toks:
+        if _is_weak(t) and (_in(t, text) or (t == "ram" and re.search(r"ddr\d", text))):
+            hit += 1
     return hit / len(toks)
 
 

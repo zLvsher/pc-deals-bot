@@ -28,7 +28,7 @@ def test_price_range():
 
 
 def test_excluded_word():
-    l = make_listing(title="RAM 16GB rotta", raw_description="non funzionante")
+    l = make_listing(title="RAM 16GB DDR4 rotta", raw_description="non funzionante")
     ok, reason = matches_params(l, default_params())
     assert not ok and "escluso" in reason
 
