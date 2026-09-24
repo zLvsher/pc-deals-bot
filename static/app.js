@@ -107,15 +107,20 @@ async function refreshStatus() {
 }
 
 // ------------------------------------------------------------- offerte
-function addOffer(o) {
+let listCleared = false;   // true dopo "Pulisci": blocca il re-render dello storico
+
+function addOffer(o, fromHistory = false) {
+  if (fromHistory && listCleared) return;  // non ri-aggiungere ciò che l'utente ha pulito
   const l = o.listing;
   const li = document.createElement("li");
   li.className = "offer";
+  const fair = (typeof o.fair_price === "number") ? o.fair_price.toFixed(0) : o.fair_price;
+  const disc = (typeof o.discount_pct === "number") ? o.discount_pct.toFixed(0) : o.discount_pct;
   li.innerHTML = `
     <a href="${l.url}" target="_blank" rel="noopener">${l.title}</a>
     <div class="meta">
-      <span class="price">${l.price.toFixed(0)} €</span>
-      <span class="deal">-${o.discount_pct}% vs prezzo equo (${o.fair_price}€)</span>
+      <span class="price">${Number(l.price).toFixed(0)} €</span>
+      <span class="deal">-${disc}% vs prezzo equo (${fair}€)</span>
       <span>📦 ${l.shipping ? "spedizione" : "scambio a mano"}</span>
       <span>📍 ${l.city || "?"}</span>
       <span>da ${l.source}</span>
@@ -126,19 +131,21 @@ function addOffer(o) {
 
 function bumpCount(n) {
   const el = $("offers-count");
-  el.textContent = parseInt(el.textContent) + n;
+  el.textContent = parseInt(el.textContent || "0", 10) + n;
 }
 
 // ----------------------------------------------------- pulisci risultati
 $("btn-clear").addEventListener("click", () => {
   $("offers-list").innerHTML = "";
   $("offers-count").textContent = "0";
+  listCleared = true;   // lo storico non viene ri-aggiunto finché non ricarichi la pagina
 });
 
 async function loadHistory() {
   const { offers } = await api.get("/api/offers");
   // gli item dello storico sono Listing "piatti": li riavvolgo in AnalyzedListing-lite
-  offers.slice().reverse().forEach(l => addOffer({ listing: l, discount_pct: 0, fair_price: l.price }));
+  offers.slice().reverse().forEach(l =>
+    addOffer({ listing: l, discount_pct: 0, fair_price: l.price }, true));
 }
 
 // ------------------------------------------------------------- WebSocket push
