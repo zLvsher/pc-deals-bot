@@ -3,3 +3,22 @@ node_modules/
 dist/
 build/
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Dati locali del bot (DB SQLite, stato, cache) — mai versionare
+data/*.db
+data/*.sqlite3
+data/*.json
+!data/.gitkeep
+
+# Segreti
+.env
+*.env
+!.env.example

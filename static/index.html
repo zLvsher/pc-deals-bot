@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC Deals Bot — RAM & CPU usato</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🖥️ PC Deals Bot</h1>
+  <div id="statusbar">
+    <span id="state-dot" class="dot stopped"></span>
+    <span id="state-text">fermo</span>
+    <span id="last-run"></span>
+  </div>
+  <div class="controls">
+    <button id="btn-start" class="green">▶ Avvia bot</button>
+    <button id="btn-stop" class="red">■ Ferma</button>
+    <button id="btn-run">⚡ Scansiona ora</button>
+  </div>
+</header>
+
+<main>
+  <!-- ------------------- Pannello parametri ------------------- -->
+  <section class="card" id="params-card">
+    <h2>Parametri di ricerca</h2>
+    <form id="params-form">
+      <label>Oggetto da cercare
+        <input type="text" id="query" placeholder="es. ram ddr4 16gb">
+      </label>
+
+      <label>Categoria
+        <select id="category">
+          <option value="ram">RAM</option>
+          <option value="cpu">CPU</option>
+        </select>
+      </label>
+
+      <div class="row">
+        <label>Prezzo min (€) <input type="number" id="min_price" min="0"></label>
+        <label>Prezzo max (€) <input type="number" id="max_price" min="1"></label>
+      </div>
+
+      <label>Spedizione / scambio a mano
+        <select id="shipping">
+          <option value="any">Indifferente</option>
+          <option value="ship">Solo con spedizione</option>
+          <option value="hand">Solo scambio a mano</option>
+        </select>
+      </label>
+
+      <label>Termini INCLUSI (separati da virgola; l'annuncio deve contenerli)
+        <input type="text" id="required_words" placeholder="es. funzionante,gtx">
+      </label>
+      <label>Termini ESCLUSI (separati da virgola)
+        <input type="text" id="exclude_words" placeholder="es. rotto,non funzionante">
+      </label>
+
+      <div class="row">
+        <label>Latitudine <input type="number" step="0.001" id="latitude"></label>
+        <label>Longitudine <input type="number" step="0.001" id="longitude"></label>
+      </div>
+      <label>Raggio dalla tua posizione (km, 0 = tutta Italia)
+        <input type="range" id="radius_km" min="0" max="500" step="10">
+        <output id="radius-out"></output>
+      </label>
+      <button type="button" id="btn-geo" class="ghost">📍 Usa la mia posizione (GPS browser)</button>
+
+      <fieldset id="sources-box">
+        <legend>Marketplace</legend>
+        <!-- checkbox generate da JS via GET /api/sources -->
+      </fieldset>
+
+      <label>Intervallo scansione (minuti)
+        <input type="number" id="interval_minutes" min="1" max="720">
+      </label>
+
+      <button type="submit" class="green big">💾 Salva parametri</button>
+      <span id="save-msg"></span>
+    </form>
+  </section>
+
+  <!-- ------------------- Lista offerte ------------------- -->
+  <section class="card wide">
+    <h2>Offerte trovate <span id="offers-count" class="badge">0</span></h2>
+    <p class="hint">Le nuove offerte arrivano in tempo reale via WebSocket 🔔
+       (notifiche Telegram in arrivo — fase 2).</p>
+    <ul id="offers-list"></ul>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
