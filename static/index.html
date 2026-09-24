@@ -30,6 +30,11 @@
         <input type="text" id="query" placeholder="es. ram ddr4 16gb">
       </label>
 
+      <label>Pertinenza minima dei risultati (titolo deve contenere la ricerca)
+        <input type="range" id="min_relevance" min="0" max="1" step="0.1">
+        <output id="relevance-out"></output>
+      </label>
+
       <label>Categoria
         <select id="category">
           <option value="ram">RAM</option>
@@ -83,7 +88,10 @@
 
   <!-- ------------------- Lista offerte ------------------- -->
   <section class="card wide">
-    <h2>Offerte trovate <span id="offers-count" class="badge">0</span></h2>
+    <div class="offers-head">
+      <h2>Offerte trovate <span id="offers-count" class="badge">0</span></h2>
+      <button type="button" id="btn-clear" class="ghost" title="Svuota la lista dei risultati mostrati">🧹 Pulisci risultati</button>
+    </div>
     <p class="hint">Le nuove offerte arrivano in tempo reale via WebSocket 🔔
        (notifiche Telegram in arrivo — fase 2).</p>
     <ul id="offers-list"></ul>

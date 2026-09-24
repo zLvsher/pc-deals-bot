@@ -70,6 +70,11 @@ class SearchParams(BaseModel):
         description="Marketplace abilitati: subito, vinted, wallapop, facebook, demo",
     )
     interval_minutes: int = Field(15, ge=1, description="Ogni quanto gira il bot")
+    min_relevance: float = Field(
+        0.6, ge=0, le=1,
+        description="Pertinenza minima del titolo alla query "
+                    "(0 = accetta tutto, 1 = tutti i termini nel titolo)",
+    )
     sort: SortOrder = SortOrder.NEWEST
     enabled: bool = True
 

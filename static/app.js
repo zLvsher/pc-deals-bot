@@ -13,6 +13,8 @@ let currentSources = [];
 async function loadParams() {
   const p = await api.get("/api/params");
   $("query").value = p.query;
+  $("min_relevance").value = p.min_relevance ?? 0.6;
+  $("relevance-out").textContent = `${Math.round((p.min_relevance ?? 0.6) * 100)}%`;
   $("category").value = p.category;
   $("min_price").value = p.min_price;
   $("max_price").value = p.max_price;
@@ -43,6 +45,10 @@ $("radius_km").addEventListener("input", e => {
   $("radius-out").textContent = e.target.value == 0 ? "tutta Italia" : `${e.target.value} km`;
 });
 
+$("min_relevance").addEventListener("input", e => {
+  $("relevance-out").textContent = `${Math.round(e.target.value * 100)}%`;
+});
+
 $("btn-geo").addEventListener("click", () => {
   if (!navigator.geolocation) return alert("Geolocalizzazione non supportata.");
   navigator.geolocation.getCurrentPosition(
@@ -57,6 +63,7 @@ $("params-form").addEventListener("submit", async (ev) => {
   const body = {
     ...cur,
     query: $("query").value.trim(),
+    min_relevance: parseFloat($("min_relevance").value),
     category: $("category").value,
     min_price: parseFloat($("min_price").value || 0),
     max_price: parseFloat($("max_price").value || 1000),
@@ -121,6 +128,12 @@ function bumpCount(n) {
   const el = $("offers-count");
   el.textContent = parseInt(el.textContent) + n;
 }
+
+// ----------------------------------------------------- pulisci risultati
+$("btn-clear").addEventListener("click", () => {
+  $("offers-list").innerHTML = "";
+  $("offers-count").textContent = "0";
+});
 
 async function loadHistory() {
   const { offers } = await api.get("/api/offers");

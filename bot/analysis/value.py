@@ -102,8 +102,40 @@ def estimate_fair_price(listing: Listing) -> tuple[float, float | None]:
 
 
 # ------------------------------------------------------------------ filtri
+_STOPWORDS = {
+    "ram", "cpu", "ddr", "ddr3", "ddr4", "ddr5", "gb", "ghz", "mhz", "pc",
+    "kit", "banchi", "banco", "processore", "processor", "memoria",
+    "memorie", "nuovo", "nuova", "usato", "per", "di", "e", "x",
+}
+
+
+def _query_tokens(query: str) -> list[str]:
+    """Token significativi della query, in minuscolo (ricerca case-insensitive)."""
+    toks = [t for t in re.split(r"[^\w]+", query.lower()) if len(t) > 1]
+    return [t for t in toks if t not in _STOPWORDS] or [t for t in toks]
+
+
+def relevance_score(listing: Listing, params: SearchParams) -> float:
+    """Quota di token della query presenti nel TITOLO dell'annuncio (0..1).
+
+    Il titolo è il segnale forte: un annuncio che non lo contiene è quasi
+    sempre un fuori-tema (es. un intero PC che menziona la RAM in descrizione).
+    """
+    toks = _query_tokens(params.query)
+    if not toks:
+        return 1.0
+    title = listing.title.lower()
+    hit = sum(1 for t in toks if t in title)
+    return hit / len(toks)
+
+
 def matches_params(listing: Listing, params: SearchParams) -> tuple[bool, str]:
     text = f"{listing.title} {listing.raw_description}".lower()
+
+    # pertinenza alla ricerca (case-insensitive): il titolo deve contenere i
+    # termini chiave della query — evita risultati fuori tema
+    if relevance_score(listing, params) < params.min_relevance:
+        return False, "titolo non pertinente alla ricerca"
 
     # prezzo
     if listing.price < 0:
