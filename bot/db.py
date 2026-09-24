@@ -52,11 +52,17 @@ class Database:
         return row is not None
 
     def mark_seen(self, uid: str, listing_dict: dict, is_offer: bool) -> None:
+        """Inserisce o AGGIORNA l'annuncio. Se era già offerto e ora non lo è
+        più (prezzo cambiato), il flag viene aggiornato di conseguenza."""
         with self._lock:
             self._conn.execute(
-                """INSERT OR IGNORE INTO seen_listings
+                """INSERT INTO seen_listings
                    (uid, source, title, url, price, data_json, is_offer)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(uid) DO UPDATE SET
+                     price = excluded.price,
+                     data_json = excluded.data_json,
+                     is_offer = excluded.is_offer""",
                 (
                     uid,
                     listing_dict["source"],

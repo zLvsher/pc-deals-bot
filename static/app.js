@@ -109,21 +109,32 @@ async function refreshStatus() {
 // ------------------------------------------------------------- offerte
 let listCleared = false;   // true dopo "Pulisci": blocca il re-render dello storico
 
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[c]));
+}
+
 function addOffer(o, fromHistory = false) {
   if (fromHistory && listCleared) return;  // non ri-aggiungere ciò che l'utente ha pulito
-  const l = o.listing;
+  const l = o.listing || o;                // difensivo: offer piatto o AnalyzedListing
   const li = document.createElement("li");
   li.className = "offer";
-  const fair = (typeof o.fair_price === "number") ? o.fair_price.toFixed(0) : o.fair_price;
-  const disc = (typeof o.discount_pct === "number") ? o.discount_pct.toFixed(0) : o.discount_pct;
+  const priceNum = Number(l.price);
+  const priceTxt = isFinite(priceNum) ? `${priceNum.toFixed(0)} €` : "?";
+  const fairNum = Number(o.fair_price ?? l.price);
+  const fairTxt = isFinite(fairNum) ? fairNum.toFixed(0) : "?";
+  const discNum = Number(o.discount_pct);
+  const discTxt = isFinite(discNum) ? discNum.toFixed(0) : "?";
+  const url = l.url ? esc(l.url) : "#";
   li.innerHTML = `
-    <a href="${l.url}" target="_blank" rel="noopener">${l.title}</a>
+    <a href="${url}" target="_blank" rel="noopener">${esc(l.title)}</a>
     <div class="meta">
-      <span class="price">${Number(l.price).toFixed(0)} €</span>
-      <span class="deal">-${disc}% vs prezzo equo (${fair}€)</span>
+      <span class="price">${priceTxt}</span>
+      <span class="deal">-${discTxt}% vs prezzo equo (${fairTxt}€)</span>
       <span>📦 ${l.shipping ? "spedizione" : "scambio a mano"}</span>
-      <span>📍 ${l.city || "?"}</span>
-      <span>da ${l.source}</span>
+      <span>📍 ${esc(l.city || "?")}</span>
+      <span>da ${esc(l.source || "?")}</span>
     </div>`;
   $("offers-list").prepend(li);
   bumpCount(1);

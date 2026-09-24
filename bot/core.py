@@ -54,22 +54,30 @@ class OfferSearchBot:
                 continue
             for listing in res:
                 seen_count += 1
-                if self.db.is_seen(listing.uid):
-                    continue
                 analyzed = analyze(listing, params)
                 is_offer = analyzed.matches_filters and analyzed.discount_pct >= 10
+                already = self.db.is_seen(listing.uid)
                 self.db.mark_seen(listing.uid,
                                   listing.model_dump(mode="json"), is_offer)
-                if is_offer:
-                    new_offers.append(analyzed)
-                    self.total_offers_this_session += 1
-                    await self.notifier.send_offer(
-                        listing.title, listing.price, listing.url)
-                    if self.on_offer:
-                        try:
-                            self.on_offer(analyzed)
-                        except Exception:  # noqa: BLE001
-                            log.exception("callback UI fallita")
+                if not is_offer or already:
+                    continue
+                new_offers.append(analyzed)
+                self.total_offers_this_session += 1
+                # 1) NOTIFICA PRIMA alla GUI (WebSocket): non deve dipendere
+                #    da Telegram/rete esterna che può bloccare l'intero ciclo.
+                if self.on_offer:
+                    try:
+                        self.on_offer(analyzed)
+                    except Exception:  # noqa: BLE001
+                        log.exception("callback UI fallita")
+                # 2) poi alert esterno (Telegram) in modo best-effort
+                try:
+                    await asyncio.wait_for(
+                        self.notifier.send_offer(
+                            listing.title, listing.price, listing.url),
+                        timeout=5)
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("notifica telegram saltata: %s", exc)
         self.status.last_run = datetime.utcnow()
         seen_total, offers_total = self.db.count_stats()
         self.status.listings_seen = seen_total

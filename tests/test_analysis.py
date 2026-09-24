@@ -48,10 +48,12 @@ def test_shipping_mode():
 
 def test_radius():
     near = make_listing(city="Milano")
-    far = make_listing(city="Palermo")   # non in tabella → posizione sconosciuta
+    far = make_listing(city="Palermo", lat=38.1, lon=13.36)  # coordinate note → lontana
+    unknown = make_listing(city="Centro sperduto")           # posizione ignota → tiene
     p = default_params(radius_km=50)
     assert matches_params(near, p)[0]
     assert not matches_params(far, p)[0]
+    assert matches_params(unknown, p)[0]
 
 def test_haversine_milano_roma():
     d = haversine_km(45.464, 9.190, 41.902, 12.496)

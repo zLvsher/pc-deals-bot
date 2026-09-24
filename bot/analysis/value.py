@@ -195,13 +195,14 @@ def matches_params(listing: Listing, params: SearchParams) -> tuple[bool, str]:
             return False, "solo spedizione, no scambio a mano"
 
     # distanza
+    # distanza: scarta solo se CONOSCIAMO la posizione e supera il raggio.
+    # (posizione sconosciuta → tiene: meglio un falso positivo che zero risultati)
     if params.radius_km > 0:
         coords = _coords_for(listing)
-        if coords is None:
-            return False, "posizione sconosciuta (radius attivo)"
-        dist = haversine_km(params.latitude, params.longitude, *coords)
-        if dist > params.radius_km:
-            return False, f"a {dist:.0f} km (> {params.radius_km:.0f})"
+        if coords is not None:
+            dist = haversine_km(params.latitude, params.longitude, *coords)
+            if dist > params.radius_km:
+                return False, f"a {dist:.0f} km (> {params.radius_km:.0f})"
 
     return True, ""
 
